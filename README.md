@@ -161,8 +161,8 @@ mkdir pipeline/temp/log
 pip install -r requirements.txt
 ```
 
-- **Create env file in your root project directory:
-  # Source
+- **Create env file in your root project directory, copy this variable into it.you need to adjust the value based on your preferences:
+  
 ```bash
 SRC_POSTGRES_DB=...
 SRC_POSTGRES_HOST=...
