@@ -141,6 +141,12 @@ Tools:
 
   ```bash
   git lfs clone https://github.com/ibnufajar1994/elt-data-warehouse.git
+  ```
+run the command below on the terminal:
+  ```bash
+  docker compose up -d
+  ```
+  
 - Create Sentry Project
   - visit: https://www.sentry.io
   - Signup with email that you want get notifications and alert
