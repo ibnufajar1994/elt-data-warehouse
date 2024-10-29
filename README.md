@@ -1,7 +1,7 @@
 # **DESIGNING AN ELT PIPELINE WITH SCD STRATEGY IMPLEMENTATION IN A DATA WAREHOUSE**
 
 This project focuses on building a robust Extract, Load, and Transform (ELT) pipeline for efficient data integration within a data warehouse environment. The pipeline incorporates Slowly Changing Dimension (SCD) strategies to manage and track changes in dimensional data over time, ensuring historical accuracy and consistency.
-You need to read this [article](https://medium.com/@ibnufajar_1994/building-robust-data-warehouses-using-the-kimball-approach-fa95481018f3)  before you use this repository to get basic understanding of the datawarehouse design of this repository.
+You need to read this [article](https://medium.com/@ibnufajar_1994/building-robust-data-warehouses-using-the-kimball-approach-fa95481018f3)  before you use this repository to get basic understanding of the datawarehouse design from this repository.
 
 ## **Requirement Gathering**
  Imagine you are a data engineer, and your client Olist, the largest e-commerce company in Brazil, asks you to apply SCD strategies to their data warehouse. You will conduct discussion with client and ask some important question that will guide you to determine which SCD strategies that suite for the data warehouse that they have.
