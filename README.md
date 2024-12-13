@@ -80,10 +80,11 @@ Align with the client's data retention policies.
 | Dimension   | SCD Type | Retention Policy | Rationale |
 |-------------|----------|------------------|-----------|
 | Product     | Type 2   | Indefinite       | Full history needed for product evolution analysis. Price and category changes are particularly important. |
-| Customer    | Type 2 / Type 1 | 3 years | Address changes need historical tracking. Other attributes only need current state. |
-| Seller      | Type 2 / Type 1 | 3 years | Address changes need historical tracking. Other attributes only need current state. |
+| Customer    | Type 2   | 3 years | Address changes need historical tracking. Other attributes only need current state. |
+| Seller      | Type 2   | 3 years | Address changes need historical tracking. Other attributes only need current state. |
 | Geolocation | Type 2   | 3 years          | Historical accuracy important for geographical analysis. |
-| Review      | Type 1   | | N/A              | Most recent version of reviews is typically sufficient. |
+| Review      | Type 1   | N/A              | Most recent version of reviews is typically sufficient. |
+|Payment      | Type 1   | N/A              | Most recent version of payments is typically sufficient.
 | Date        | None     | N/A              | Date dimension is static and doesn't change. |
 
 ## Implementation Details
