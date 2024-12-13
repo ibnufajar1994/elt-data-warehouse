@@ -17,7 +17,7 @@ You need to read this [article](https://medium.com/@ibnufajar_1994/building-robu
 
 **QUESTION 3:** For these dimensions, do you need to keep a full history of all changes, or is it sufficient to know the current state and the previous state?
 
-**POSSIBLE ANSWER:** For products, we need a full history as it's crucial for our product evolution analysis. For customers and sellers, knowing the current and previous state should be sufficient.
+**POSSIBLE ANSWER:** For products, customers, and selers  we need a full history as it's crucial for our product evolution analysis. For other dimension, knowing the current and previous state should be sufficient.
 
 
 **QUESTION 4:** Are there any specific attributes within these dimensions that are more important to track historically than others?
@@ -35,27 +35,27 @@ Based on the information gathered from the client, we can determine the appropri
 **Product Dimension**
 - SCD Type: Type 2
 - Reason: The client needs a full history of all changes, especially for price and category changes. They want to keep this history indefinitely.
-- Implementation: We'll add "effective_date", "end_date", and "is_current" columns to the dim_product table. When a product's attributes change, we'll insert a new row with the updated information, set the "end_date" of the previous row, and update the "is_current" flags accordingly.
+- Implementation: We'll add "created_date", "expired_date", and "current_flag" columns to the dim_product table. When a product's attributes change, we'll insert a new row with the updated information, set the "expired_date" of the previous row, and update the "current_flag" flags accordingly.
 
 **Customer Dimension**
 SCD Type: Type 2 for address changes, Type 1 for other attributes
 - Reason: The client specifically mentioned address changes as important to track historically, but only needs current and previous states. Other attributes can be overwritten.
-- Implementation: We'll add "effective_date", "end_date", and "is_current" columns to the dim_customer table. For address changes, we'll insert a new row and update the dates and flags. For other attribute changes, we'll simply update the current row.
+- Implementation: We'll add "created_date", "expired_date", and "current_flag" columns to the dim_customer table. For address changes, we'll insert a new row and update the dates and flags. For other attribute changes, we'll simply update the current row.
 
 **Seller Dimension:**
 - SCD Type: Type 2 for address changes, Type 1 for other attributes
 - Reason Similar to the customer dimension, address changes are important to track historically, but only current and previous states are needed.
-- Implementation: We'll add "effective_date", "end_date", and "is_current" columns to the dim_seller table. The implementation will be similar to the customer dimension.
+- Implementation: We'll add "create_date", "expired_date", and "current_flag" columns to the dim_seller table. The implementation will be similar to the customer dimension.
 
-**Order Dimension**
-- SCD Type: Type 1
-- Rationale: While not specifically mentioned by the client, order details typically don't change often, and when they do (e.g., status updates), we usually want to see the most current state.
-- Implementation: We'll simply update the existing row when any changes occur.
+**Payments Dimension**
+- SCD Type: 1
+- Reason: We only need to focus on current and uptodate payment information of the customer. The SCD type 1 will effective and efficient to apply on this dimension and will reduce the complexity of the database size.
+- Implementation: We'll add "created_date", "update_date" to the dim_payments
 
 **Geolocation Dimension**
 SCD Type: Type 2
 - Reason: Although not explicitly mentioned by the client, geolocation data can change over time, and historical accuracy might be important for geographical analysis.
-- Implementation: We'll add "effective_date", "end_date", and "is_current" columns to the dim_geolocation table.
+- Implementation: We'll add "created_date", "expired_date", and "current_flag" columns to the dim_geolocation table.
 
 **Review Dimension**
 - SCD Type: Type 1
@@ -63,7 +63,7 @@ SCD Type: Type 2
 - Implementation: We'll update the existing row if any changes occur.
 
 **Date Dimension**
-- SCD Type: None
+- SCD Type: 0
 - Reason: Date dimensions are typically static and don't change over time.
 
 
@@ -77,31 +77,31 @@ Align with the client's data retention policies.
 
 # Slowly Changing Dimension (SCD) Implementation
 
-| Dimension   | SCD Type | Attributes for Type 2 | Retention Policy | Rationale |
-|-------------|----------|------------------------|------------------|-----------|
-| Product     | Type 2   | All attributes         | Indefinite       | Full history needed for product evolution analysis. Price and category changes are particularly important. |
-| Customer    | Type 2 / Type 1 | Address (Type 2), Others (Type 1) | 3 years | Address changes need historical tracking. Other attributes only need current state. |
-| Seller      | Type 2 / Type 1 | Address (Type 2), Others (Type 1) | 3 years | Address changes need historical tracking. Other attributes only need current state. |
-| Order       | Type 1   | N/A                    | N/A              | Most recent state is typically sufficient for orders. |
-| Geolocation | Type 2   | All attributes         | 3 years          | Historical accuracy important for geographical analysis. |
-| Review      | Type 1   | N/A                    | N/A              | Most recent version of reviews is typically sufficient. |
-| Date        | None     | N/A                    | N/A              | Date dimension is static and doesn't change. |
+| Dimension   | SCD Type | Retention Policy | Rationale |
+|-------------|----------|------------------|-----------|
+| Product     | Type 2   | Indefinite       | Full history needed for product evolution analysis. Price and category changes are particularly important. |
+| Customer    | Type 2 / Type 1 | 3 years | Address changes need historical tracking. Other attributes only need current state. |
+| Seller      | Type 2 / Type 1 | 3 years | Address changes need historical tracking. Other attributes only need current state. |
+| Geolocation | Type 2   | 3 years          | Historical accuracy important for geographical analysis. |
+| Review      | Type 1   | | N/A              | Most recent version of reviews is typically sufficient. |
+| Date        | None     | N/A              | Date dimension is static and doesn't change. |
 
 ## Implementation Details
 
 - For Type 2 SCD:
-  - Add columns: `effective_date`, `end_date`, `is_current`
+  - Add columns: `created_date`, `expired_date`, `current_flag`
   - Insert new row for changes, update dates and flags accordingly
 
 - For Type 1 SCD:
   - Simply update the existing row when changes occur
+  - Add columns: `created_date`, `updated_date`
 
 
 This SCD implementation strategy balances the need for historical tracking with performance and storage considerations, providing a robust solution for the Olist data warehouse.
 
 # ELT WORKFLOW
 In this project, we will use 2 separate database. The first database is the original data source, and the second database act as datawarehouse.
-In first database, consist only 1 schema, and for second database consist of 3 schema: sources, staging, and final. the data from original database will be extracted and loaded first into sources schema. the data from sources schema, will be loaded into staging schema, where in this schema there is addition of column "id" with uuid types.
+In first database, consist only 1 schema, and for second database consist of 3 schema: sources, staging, and final. the data from original database will be extracted and loaded first into sources schema. the data from sources schema, will be loaded into staging schema.
 
 ![FIGURE](https://github.com/user-attachments/assets/8f39000d-75ef-4db5-b101-0192e8566a5a)
 
