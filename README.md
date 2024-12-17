@@ -90,7 +90,7 @@ Align with the client's data retention policies.
 ## Implementation Details
 
 - For Type 2 SCD:
-  - Add columns: `created_date`, `expired_date`, `current_flag`
+  - Add columns: `created_date`, `updated_date`, `current_flag`
   - Insert new row for changes, update dates and flags accordingly
 
 - For Type 1 SCD:
