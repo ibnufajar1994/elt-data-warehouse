@@ -34,7 +34,7 @@ Based on the information gathered from the client, we can determine the appropri
 
 **Product Dimension**
 - SCD Type: Type 2
-- Reason: The client needs a full history of all changes, especially for price and category changes. They want to keep this history indefinitely.
+- Reason: The client needs a full history of all changes, especially for product & category names, also description changes. They want to keep this history indefinitely.
 - Implementation: We'll add "created_date", "expired_date", and "current_flag" columns to the dim_product table. When a product's attributes change, we'll insert a new row with the updated information, set the "expired_date" of the previous row, and update the "current_flag" flags accordingly.
 
 **Customer Dimension**
