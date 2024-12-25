@@ -1,61 +1,64 @@
--- Transformation script for dim_sellers
-
-WITH stg_dim_sellers AS (
-    SELECT DISTINCT
-        seller_id,
+WITH source AS (
+    SELECT 
+        id as seller_id_sk,              -- UUID sebagai surrogate key
+        seller_id as seller_id_nk,      -- Natural key dari source system
         seller_zip_code_prefix,
         seller_city,
         seller_state
     FROM stg.sellers
-    WHERE seller_id IS NOT NULL
+),
+
+updated_records AS (
+    UPDATE final.dim_sellers final
+    SET current_flag = 'expired',
+        updated_date = CURRENT_TIMESTAMP
+    WHERE seller_id_nk IN (
+        -- Cari product yang ada perubahan data
+        SELECT seller_id_nk 
+        FROM source src
+        WHERE final.seller_id_nk = src.seller_id_nk
+        AND (
+            -- Deteksi perubahan pada kolom-kolom yang di-track
+            final.seller_zip_code_prefix <> src.seller_zip_code_prefix
+            OR final.seller_city<> src.seller_city
+            OR final.seller_state <> src.seller_state
+        
+        )
+    )
+    AND current_flag = 'current'    -- Hanya update record yang masih current
+    RETURNING *
 )
 
--- Insert or update the sellers dimension table
 INSERT INTO final.dim_sellers (
-    seller_id,
+    seller_id_sk,
+    seller_id_nk,
     seller_zip_code_prefix,
     seller_city,
-    seller_state,
-    valid_from,
-    valid_to,
-    is_current
-)
-SELECT
-    seller_id,
-    seller_zip_code_prefix,
-    seller_city,
-    seller_state,
-    CURRENT_TIMESTAMP AS valid_from,
-    NULL AS valid_to,
-    TRUE AS is_current
-FROM stg_dim_sellers
-ON CONFLICT (seller_id)
-DO UPDATE SET
-    seller_zip_code_prefix = EXCLUDED.seller_zip_code_prefix,
-    seller_city = EXCLUDED.seller_city,
-    seller_state = EXCLUDED.seller_state,
-    valid_from = CURRENT_TIMESTAMP,
-    is_current = TRUE
-WHERE (
-    final.dim_sellers.seller_zip_code_prefix != EXCLUDED.seller_zip_code_prefix OR
-    final.dim_sellers.seller_city != EXCLUDED.seller_city OR
-    final.dim_sellers.seller_state != EXCLUDED.seller_state
-);
+    seller_state
+    )
 
--- Update the valid_to and is_current for old records
-UPDATE final.dim_sellers
-SET valid_to = CURRENT_TIMESTAMP,
-    is_current = FALSE
-WHERE seller_id IN (
-    SELECT seller_id
-    FROM final.dim_sellers
-    WHERE is_current = TRUE
-    GROUP BY seller_id
-    HAVING COUNT(*) > 1
+SELECT 
+    seller_id_sk,
+    seller_id_nk,
+    seller_zip_code_prefix,
+    seller_city,
+    seller_state
+
+FROM source src
+
+
+WHERE NOT EXISTS (
+    -- Cek apakah data seller sudah ada di dimension table dengan status current
+    SELECT 1 
+    FROM final.dim_sellers final 
+    WHERE final.seller_id_nk = src.seller_id_nk
+    AND final.current_flag = 'current'
 )
-AND is_current = TRUE
-AND valid_from < (
-    SELECT MAX(valid_from)
-    FROM final.dim_sellers AS inner_dim
-    WHERE inner_dim.seller_id = final.dim_sellers.seller_id
-);
+
+OR 
+    -- Kondisi 2: Insert untuk data yang berubah (versi baru)
+    src.seller_id_nk IN (
+        SELECT seller_id_nk 
+        FROM updated_records
+    );
+

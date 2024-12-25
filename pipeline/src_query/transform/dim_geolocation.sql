@@ -1,66 +1,65 @@
--- Transformation script for dim_geolocation
-
-WITH stg_dim_geolocation AS (
-    SELECT DISTINCT
-        geolocation_zip_code_prefix,
+WITH source AS (
+    SELECT 
+        id as geolocation_sk,              -- UUID sebagai surrogate key
+        geolocation_zip_code_prefix,      -- Natural key dari source system
         geolocation_lat,
         geolocation_lng,
         geolocation_city,
         geolocation_state
     FROM stg.geolocation
-    WHERE geolocation_zip_code_prefix IS NOT NULL
+),
+
+updated_records AS (
+    UPDATE final.dim_geolocation final
+    SET current_flag = 'expired',
+        updated_date = CURRENT_TIMESTAMP
+    WHERE geolocation_zip_code_prefix IN (
+        -- Cari product yang ada perubahan data
+        SELECT geolocation_zip_code_prefix 
+        FROM source src
+        WHERE final.geolocation_zip_code_prefix = src.geolocation_zip_code_prefix
+        AND (
+            -- Deteksi perubahan pada kolom-kolom yang di-track
+            final.geolocation_city <> src.geolocation_city 
+            OR final.geolocation_state <> src.geolocation_state
+        
+        )
+    )
+    AND current_flag = 'current'    -- Hanya update record yang masih current
+    RETURNING *
 )
 
--- Insert or update the geolocation dimension table
 INSERT INTO final.dim_geolocation (
-    geolocation_zip_code_prefix,
+    geolocation_sk,
+    geolocation_zip_code_prefix,      
     geolocation_lat,
     geolocation_lng,
     geolocation_city,
-    geolocation_state,
-    valid_from,
-    valid_to,
-    is_current
-)
-SELECT
-    geolocation_zip_code_prefix,
-    geolocation_lat,
-    geolocation_lng,
-    geolocation_city,
-    geolocation_state,
-    CURRENT_TIMESTAMP AS valid_from,
-    NULL AS valid_to,
-    TRUE AS is_current
-FROM stg_dim_geolocation
-ON CONFLICT (geolocation_zip_code_prefix)
-DO UPDATE SET
-    geolocation_lat = EXCLUDED.geolocation_lat,
-    geolocation_lng = EXCLUDED.geolocation_lng,
-    geolocation_city = EXCLUDED.geolocation_city,
-    geolocation_state = EXCLUDED.geolocation_state,
-    valid_from = CURRENT_TIMESTAMP,
-    is_current = TRUE
-WHERE (
-    final.dim_geolocation.geolocation_lat != EXCLUDED.geolocation_lat OR
-    final.dim_geolocation.geolocation_lng != EXCLUDED.geolocation_lng OR
-    final.dim_geolocation.geolocation_city != EXCLUDED.geolocation_city OR
-    final.dim_geolocation.geolocation_state != EXCLUDED.geolocation_state
-);
+    geolocation_state
+    )
 
--- Update the valid_to and is_current for old records
-UPDATE final.dim_geolocation
-SET valid_to = CURRENT_TIMESTAMP,
-    is_current = FALSE
-WHERE geolocation_zip_code_prefix IN (
-    SELECT geolocation_zip_code_prefix
-    FROM final.dim_geolocation
-    WHERE is_current = TRUE
-    GROUP BY geolocation_zip_code_prefix
-    HAVING COUNT(*) > 1
+SELECT 
+    geolocation_sk,
+    geolocation_zip_code_prefix,      
+    geolocation_lat,
+    geolocation_lng,
+    geolocation_city,
+    geolocation_state
+
+FROM source src
+
+
+WHERE NOT EXISTS (
+    -- Cek apakah data sudah ada di dimension table dengan status current
+    SELECT 1 
+    FROM final.dim_geolocation final 
+    WHERE final.geolocation_zip_code_prefix = src.geolocation_zip_code_prefix
+    AND final.current_flag = 'current'
 )
-AND is_current = TRUE
-AND valid_from < (
-    SELECT MAX(valid_from)
-    FROM final.dim_geolocation AS inner_dim
-    WHERE inner_dim.geolocation_zip_code_prefix = final.dim_geolocation.geolocation_zip_code_prefix
-);
+
+OR 
+    -- Kondisi 2: Insert untuk data yang berubah (versi baru)
+    src.geolocation_zip_code_prefix IN (
+        SELECT geolocation_zip_code_prefix
+        FROM updated_records
+    );

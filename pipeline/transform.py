@@ -50,18 +50,13 @@ class Transform(luigi.Task):
                 file_path = f'{DIR_TRANSFORM_QUERY}/dim_sellers.sql'
             )
             
-            dim_dates_query = read_sql_file(
-                file_path = f'{DIR_TRANSFORM_QUERY}/dim_dates.sql'
+            dim_reviews_query = read_sql_file(
+                file_path = f'{DIR_TRANSFORM_QUERY}/dim_reviews.sql'
             )
-            
-            fact_orders_query = read_sql_file(
-                file_path = f'{DIR_TRANSFORM_QUERY}/fact_orders.sql'
-            )
-            
 
-            
-            fact_order_items_query = read_sql_file(
-                file_path = f'{DIR_TRANSFORM_QUERY}/fact_order_items.sql'
+       
+            fact_order_line_items_query = read_sql_file(
+                file_path = f'{DIR_TRANSFORM_QUERY}/fact_order_line_items.sql'
             )
             
 
@@ -123,21 +118,16 @@ class Transform(luigi.Task):
             query = sqlalchemy.text(dim_sellers_query)
             session.execute(query)
             logging.info("Transform to 'final.dim_sellers' - SUCCESS")
-            
-            # Transform to final.dim_dates
-            query = sqlalchemy.text(dim_dates_query)
-            session.execute(query)
-            logging.info("Transform to 'final.dim_dates' - SUCCESS")
 
-            # Transform to final.fact_orders
-            query = sqlalchemy.text(fact_orders_query)
+            # Transform to final.dim_reviews
+            query = sqlalchemy.text(dim_reviews_query)
             session.execute(query)
-            logging.info("Transform to 'final.fact_orders' - SUCCESS")
+            logging.info("Transform to 'final.dim_reviews' - SUCCESS")
 
-            # Transform to final.fact_order_items
-            query = sqlalchemy.text(fact_order_items_query)
+            # Transform to final.fact_order_line_items
+            query = sqlalchemy.text(fact_order_line_items_query)
             session.execute(query)
-            logging.info("Transform to 'final.fact_order_items' - SUCCESS")
+            logging.info("Transform to 'final.fact_order_line_items' - SUCCESS")
 
             # Transform to final.fact_order_payments
             query = sqlalchemy.text(fact_order_payments_query)

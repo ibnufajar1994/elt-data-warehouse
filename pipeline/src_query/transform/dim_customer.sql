@@ -1,66 +1,67 @@
--- Transformation script for dim_customer
-
-WITH stg_dim_customer AS (
-    SELECT DISTINCT
-        customer_id,
+-- CTE untuk mengambil dan menyiapkan data dari staging
+WITH source AS (
+    SELECT 
+        id as customer_id_sk,              -- UUID sebagai surrogate key
+        customer_id as customer_id_nk,      -- Natural key dari source system
         customer_unique_id,
         customer_zip_code_prefix,
         customer_city,
         customer_state
     FROM stg.customers
-    WHERE customer_id IS NOT NULL
+),
+
+-- Update records yang berubah dengan mengubah current_flag menjadi 'expired'
+updated_records AS (
+    UPDATE final.dim_customers final
+    SET current_flag = 'expired',
+        updated_date = CURRENT_TIMESTAMP
+    WHERE customer_id_nk IN (
+        -- Cari customer yang ada perubahan data
+        SELECT customer_id_nk 
+        FROM source src
+        WHERE final.customer_id_nk = src.customer_id_nk
+        AND (
+            -- Deteksi perubahan pada kolom-kolom yang di-track
+            final.customer_zip_code_prefix <> src.customer_zip_code_prefix 
+            OR final.customer_city <> src.customer_city
+            OR final.customer_state <> src.customer_state
+        )
+    )
+    AND current_flag = 'current'    -- Hanya update record yang masih current
+    RETURNING *
 )
 
--- Insert or update the customer dimension table
-INSERT INTO final.dim_customer (
-    customer_id,
+-- Insert data baru:
+-- 1. Record yang belum ada di dimension table
+-- 2. Version baru dari record yang berubah (yang sudah di-expire di atas)
+INSERT INTO final.dim_customers (
+    customer_id_sk,
+    customer_id_nk,
     customer_unique_id,
     customer_zip_code_prefix,
     customer_city,
-    customer_state,
-    valid_from,
-    valid_to,
-    is_current
+    customer_state
 )
-SELECT
-    customer_id,
+SELECT 
+    customer_id_sk,
+    customer_id_nk,
     customer_unique_id,
     customer_zip_code_prefix,
     customer_city,
-    customer_state,
-    CURRENT_TIMESTAMP AS valid_from,
-    NULL AS valid_to,
-    TRUE AS is_current
-FROM stg_dim_customer
-ON CONFLICT (customer_id)
-DO UPDATE SET
-    customer_unique_id = EXCLUDED.customer_unique_id,
-    customer_zip_code_prefix = EXCLUDED.customer_zip_code_prefix,
-    customer_city = EXCLUDED.customer_city,
-    customer_state = EXCLUDED.customer_state,
-    valid_from = CURRENT_TIMESTAMP,
-    is_current = TRUE
-WHERE (
-    final.dim_customer.customer_unique_id != EXCLUDED.customer_unique_id OR
-    final.dim_customer.customer_zip_code_prefix != EXCLUDED.customer_zip_code_prefix OR
-    final.dim_customer.customer_city != EXCLUDED.customer_city OR
-    final.dim_customer.customer_state != EXCLUDED.customer_state
-);
-
--- Update the valid_to and is_current for old records
-UPDATE final.dim_customer
-SET valid_to = CURRENT_TIMESTAMP,
-    is_current = FALSE
-WHERE customer_id IN (
-    SELECT customer_id
-    FROM final.dim_customer
-    WHERE is_current = TRUE
-    GROUP BY customer_id
-    HAVING COUNT(*) > 1
+    customer_state
+FROM source src
+WHERE NOT EXISTS (
+    -- Cek apakah customer sudah ada di dimension table dengan status current
+    SELECT 1 
+    FROM final.dim_customers final 
+    WHERE final.customer_id_nk = src.customer_id_nk
+    AND final.current_flag = 'current'
 )
-AND is_current = TRUE
-AND valid_from < (
-    SELECT MAX(valid_from)
-    FROM final.dim_customer AS inner_dim
-    WHERE inner_dim.customer_id = final.dim_customer.customer_id
-);
+
+OR 
+    -- Kondisi 2: Insert untuk data yang berubah (versi baru)
+    src.customer_id_nk IN (
+        SELECT customer_id_nk 
+        FROM updated_records
+    );
+
